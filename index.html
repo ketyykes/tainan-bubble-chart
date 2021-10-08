@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+        .xAxis line, .yAxis line {
+            stroke:rgba(0,0,0,0.1);
+            stroke-width:3;
+        }
+        .wrap{
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .wrap-data{
+            display: flex;
+            align-items: center;
+        }
+        .tooltip{
+            width: 400px;
+            text-align: center;
+            font-size: 36px;
+        }
+        .area-str{
+            margin:4px;
+        }
+        .wrap input{ 
+            text-align: right;
+            width: 50px;
+        }
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        }
+        input[type="number"]{
+        -moz-appearance: textfield;
+        }
+        .wrap button{
+            color: rgb(255, 255, 255);
+            background-color: rgb(7, 122, 175);
+            width: 100px;
+            border: 0;
+            border-radius: 4px;
+            padding: 4px;
+        }
+        .wrap button:hover{
+            background-color: rgba(7, 122, 175, 0.904);
+            cursor: pointer;
+        }
+        .yAxis g:first-of-type text{
+            display: none;
+        }
+        .xAxis g:last-of-type text{
+            display: none;
+        }
+        .wrap-data{
+            position: relative;
+        }
+        .land-div{
+            position: absolute;
+            writing-mode: vertical-lr;
+            bottom: 50px;
+        }
+        .bulid-div{
+            position: absolute;
+            bottom: 0;
+            left: 50px;
+        }
+    </style>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+  </head>
+  <body>
+      <div class="wrap">
+        <select id="district">
+        </select>
+        <div class="area-str">建物面積最小值</div>
+        <input type="number" id="min-bulid" value=0>
+        <span>平方公尺</span>
+
+        <div class="area-str">建物面積最大值</div>
+        <input type="number" id="max-bulid" value=500>
+        <span>平方公尺</span>
+
+        <div class="area-str">土地面積最大值</div>
+        <input type="number" id="max-land" value=300>
+        <span>平方公尺</span>
+
+        <div class="area-str">土地面積最小值</div>
+        <input type="number" id="min-land" value=0>
+        <span>平方公尺</span>
+        <button id="btn">軸線更新</button>
+      </div>
+      <div class="wrap-data">
+          <div class="bulid-div">建物面積m²</div>
+          <div class="land-div">土地面積m²</div>
+      </div>
+    <script>
+        let width = 900;
+        let height = 900;
+     
+        const svg = d3.select(".wrap-data")
+                    .append("svg")
+                    .attr("width", width)
+                    .attr("height", height);
+            d3.csv("tainan11009.csv").then(function(data) {
+                const groupData = d3.group(data,d=>d["鄉鎮市區"]);
+                groupData.delete("The villages and towns urban district");
+                console.log(groupData);
+                const districtAry = [...groupData.keys()];
+                let defaultDistrict = districtAry[0];
+                for (let i=0;i<districtAry.length;i++) {
+                    d3.select("#district").append("option").text(districtAry[i]);
+                }
+                d3.select("#district").on("change", function(e) {
+                    defaultDistrict=e.target.value
+                    update();
+                })
+                d3.select("#btn").on("click",update);
+                function update(){
+                    d3.selectAll("svg g").remove();
+                    console.log(groupData.get(defaultDistrict));
+                    console.log(Array.isArray(groupData.get(defaultDistrict)))
+                    const house = groupData.get(defaultDistrict).filter(function (d) {
+                        if (d["交易標的"] !== "土地" && d["交易標的"] !== "車位") {
+                            return d;
+                        }
+                    });
+                    house.forEach(el => {
+                        el["建物移轉總面積平方公尺"] = +(el["建物移轉總面積平方公尺"]);
+                        el["土地移轉總面積平方公尺"] = +(el["土地移轉總面積平方公尺"]);
+                        el["總價元"] = +el["總價元"];
+                    });
+
+                    let a = d3.max(house,(d)=>(d["總價元"]));
+                    console.log(a);
+
+                    let minPrice = 0;
+                    let maxPrice = 10000000;
+                    let minBuildArea =d3.select("#min-bulid").node().value;
+                    let maxBuildArea =d3.select("#max-bulid").node().value;
+                    let minLandArea = d3.select("#min-land").node().value;
+                    let maxLandArea =d3.select("#max-land").node().value;
+                    const scaleX =  d3.scaleLinear().domain([minBuildArea,maxBuildArea]).range([0,800]).clamp(true);
+                    const scaleY =  d3.scaleLinear().domain([maxLandArea,minLandArea]).range([0,800]).clamp(true);
+                    const scaleR = d3.scaleLinear().domain([minPrice,maxPrice]).range([1,30]).clamp(false);
+                    const axisX = d3.axisBottom(scaleX)
+                                    .ticks(15)
+                                    .tickFormat(d=>(d+"m²"))
+                                    .tickSize(-800); 
+                    const axisY = d3.axisLeft(scaleY)
+                                    .ticks(15)
+                                    .tickFormat(d=>(d+"m²"))
+                                    .tickSize(-800); 
+                    const gX = svg.append("g")
+                                .attr("transform",`translate(50,850)`)
+                                .classed("xAxis",true);
+                    const gY = svg.append("g")
+                                .attr("transform",`translate(50,50)`)
+                                .classed("yAxis",true);                    
+                    gX.transition().duration(1000).call(axisX);
+                    gY.transition().duration(1000).call(axisY);
+         
+                    const gCircle = svg.append("g");
+                    gCircle.selectAll("circle")
+                            .data(house)
+                            .join("circle")
+                            .attr("transform", "translate(50,50)")
+                            .attr("fill","rgba(255,0,0,.1)")
+                            .attr("cx",d=>(scaleX(d["土地移轉總面積平方公尺"])))
+                            .attr("cy",d=>(scaleY(d["建物移轉總面積平方公尺"])))
+                            .attr("r",d=>{
+                                if(
+                                   (scaleX(d["土地移轉總面積平方公尺"])-scaleR(d["總價元"]))>0
+                                    &&(scaleY(d["建物移轉總面積平方公尺"])-scaleR(d["總價元"]))>0
+                                    &&(scaleX(d["土地移轉總面積平方公尺"])+scaleR(d["總價元"]))<800
+                                    &&(scaleY(d["建物移轉總面積平方公尺"])+scaleR(d["總價元"]))<800
+                                ){
+                                    return scaleR(d["總價元"])
+                                }
+                                else {
+                                    return 0;
+                                }
+                            })
+                            .on("mouseenter",function(){
+                                d3.select(".tooltip").remove();
+                                d3.select(this).attr("fill","blue");
+                                tooltip(d3.select(this).data());
+                                // console.log(d3.select(this).data());
+                            }).on("mouseleave",function(){
+                                d3.select(this)
+                                    .attr("fill","rgba(255,0,0,.1)");
+                            });
+                }
+                update();
+                function tooltip(city){
+                    d3.select(".wrap-data").append("div").classed("tooltip",true).html(
+                        `<p>交易標的：${city[0]["交易標的"]}</p>
+                        <p>建物型態：${city[0]["建物型態"]}</p>
+                        <p>主要用途：${city[0]["主要用途"]}</p>
+                        <p>移轉層次：${city[0]["移轉層次"]}</p>
+                        <p>建物總面積${parseInt(city[0]["建物移轉總面積平方公尺"])}m²</p>
+                        <p>土地總面積${parseInt(city[0]["土地移轉總面積平方公尺"])}m²</p>
+                        <p>總價錢${city[0]["總價元"]}元</p>
+                    `)
+                }
+        
+            })
+    </script>
+  </body>
+</html>
