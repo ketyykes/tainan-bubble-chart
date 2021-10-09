@@ -132,10 +132,6 @@
                         el["土地移轉總面積平方公尺"] = +(el["土地移轉總面積平方公尺"]);
                         el["總價元"] = +el["總價元"];
                     });
-
-                    let a = d3.max(house,(d)=>(d["總價元"]));
-                    console.log(a);
-
                     let minPrice = 0;
                     let maxPrice = 10000000;
                     let minBuildArea =d3.select("#min-bulid").node().value;
