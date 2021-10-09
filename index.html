@@ -8,6 +8,7 @@
     <style>
         .xAxis line, .yAxis line {
             stroke:rgba(0,0,0,0.1);
+            stroke-width: 3;
         }
         .wrap{
             display: flex;
@@ -140,7 +141,7 @@
                     let maxLandArea =d3.select("#max-land").node().value;
                     const scaleX =  d3.scaleLinear().domain([minBuildArea,maxBuildArea]).range([0,800]).clamp(true);
                     const scaleY =  d3.scaleLinear().domain([maxLandArea,minLandArea]).range([0,800]).clamp(true);
-                    const scaleR = d3.scaleLinear().domain([minPrice,maxPrice]).range([1,30]).clamp(false);
+                    const scaleR = d3.scaleLinear().domain([minPrice,maxPrice]).range([5,900]).clamp(false);
                     const axisX = d3.axisBottom(scaleX)
                                     .ticks(15)
                                     .tickFormat(d=>(d+"m²"))
@@ -167,13 +168,15 @@
                             .attr("cx",d=>(scaleX(d["土地移轉總面積平方公尺"])))
                             .attr("cy",d=>(scaleY(d["建物移轉總面積平方公尺"])))
                             .attr("r",d=>{
+                                let R = Math.sqrt(scaleR(d["總價元"]));
                                 if(
-                                   (scaleX(d["土地移轉總面積平方公尺"])-scaleR(d["總價元"]))>0
-                                    &&(scaleY(d["建物移轉總面積平方公尺"])-scaleR(d["總價元"]))>0
-                                    &&(scaleX(d["土地移轉總面積平方公尺"])+scaleR(d["總價元"]))<800
-                                    &&(scaleY(d["建物移轉總面積平方公尺"])+scaleR(d["總價元"]))<800
-                                ){
-                                    return scaleR(d["總價元"])
+                                   (scaleX(d["土地移轉總面積平方公尺"])-R>0)
+                                    &&(scaleY(d["建物移轉總面積平方公尺"])-R>0)
+                                    &&(scaleX(d["土地移轉總面積平方公尺"])+R<800)
+                                    &&(scaleY(d["建物移轉總面積平方公尺"])+R<800)
+                                )
+                                {
+                                    return Math.sqrt(scaleR(d["總價元"]));
                                 }
                                 else {
                                     return 0;
